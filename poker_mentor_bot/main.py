@@ -1,16 +1,27 @@
 from fastapi import FastAPI
 import uvicorn
-from bot.handlers import setup_handlers
-from config import BOT_TOKEN, WEBHOOK_URL
-from telegram.ext import Application
+from config import BOT_TOKEN
+from telegram.ext import Application, CommandHandler, MessageHandler, filters
 
 app = FastAPI(title="Poker Mentor Bot")
 
 # Инициализируем бота
 bot_app = Application.builder().token(BOT_TOKEN).build()
 
+# Простой обработчик для тестирования
+async def start(update, context):
+    from bot.keyboards import get_main_menu
+    await update.message.reply_text(
+        "🤖 Бот работает! Это тестовая версия.",
+        reply_markup=get_main_menu()
+    )
+
+async def echo(update, context):
+    await update.message.reply_text(f"Вы сказали: {update.message.text}")
+
 # Настраиваем обработчики
-setup_handlers(bot_app)
+bot_app.add_handler(CommandHandler("start", start))
+bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
 
 @app.post("/webhook")
 async def webhook(update: dict):
@@ -23,7 +34,8 @@ async def on_startup():
     """Настройка при запуске"""
     await bot_app.initialize()
     await bot_app.start()
-    await bot_app.bot.set_webhook(WEBHOOK_URL)
+    # Временно отключаем вебхук для локального тестирования
+    # await bot_app.bot.set_webhook(WEBHOOK_URL)
     print("🤖 Бот запущен и готов к работе!")
 
 @app.on_event("shutdown")
